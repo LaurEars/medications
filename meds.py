@@ -67,19 +67,18 @@ db = sql.connect(host=settings['host'],
 cur = db.cursor()
 
 # grab colors (by code), code (by color/shape), and
-color = {}
+text = {}
 code = {}
-shape = {}
 
 # get colors
 cur.execute(select_color)
 for row in cur.fetchall():
-    color[row[2]] = row[1]
+    text[row[2]] = row[1]
     code[row[1]] = row[2]
 # get shapes
 cur.execute(select_shape)
 for row in cur.fetchall():
-    shape[row[2]] = row[1]
+    text[row[2]] = row[1]
     code[row[1]] = row[2]
 
 
@@ -118,9 +117,15 @@ def bad_replacement_string(query_string, replacement_items):
     query = query_string % replacement_items
     return query
 
+
 def translate_code(code):
-    # will return the color/shape string given the code input
-    return None
+    decoded_items = []
+    for item in code.split(';'):
+        try:
+            decoded_items.append(text[code])
+        except KeyError:
+            decoded_items.append(item)
+    return ';'.join(decoded_items)
 
 if __name__ == '__main__':
     search_string = "SELECT %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
@@ -143,6 +148,9 @@ if __name__ == '__main__':
     for item, count in count.most_common():
         if count < 20:
             break
-        print count, item
+        decoded_items = []
+        for color_shape in item:
+            decoded_items.append(translate_code(color_shape))
+        print count, decoded_items
     cur.close()
     db.close()
