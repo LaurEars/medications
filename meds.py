@@ -1,5 +1,6 @@
 import MySQLdb as sql
 import json
+from collections import Counter
 
 '''
 Fields present:
@@ -117,13 +118,31 @@ def bad_replacement_string(query_string, replacement_items):
     query = query_string % replacement_items
     return query
 
+def translate_code(code):
+    # will return the color/shape string given the code input
+    return None
 
-search_string = "SELECT %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
-search_tuple = ('MEDICINE_NAME', table_name['color'], code['Green'], table_name['shape'], code['Pentagon (5 sides)'],)
-print search_string % search_tuple
-print "All medicines that are green and have 5 sides"
-cur.execute(bad_replacement_string(search_string,search_tuple))
-for row in cur.fetchall():
-    print row
-cur.close()
-db.close()
+if __name__ == '__main__':
+    search_string = "SELECT %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
+    search_tuple = ('MEDICINE_NAME', table_name['color'], code['Green'], table_name['shape'], code['Pentagon (5 sides)'],)
+    print "All medicines that are green and have 5 sides"
+    cur.execute(bad_replacement_string(search_string,search_tuple))
+    for row in cur.fetchall():
+        print row
+
+    print '\n' + '*'*30 + '\n'
+
+    print "Most common color/shape combinations"
+    # try counting different types of pills
+    search_string = "SELECT %s, %s FROM pillbox_master"
+    search_tuple = (table_name['color'], table_name['shape'],)
+    cur.execute(bad_replacement_string(search_string,search_tuple))
+    count = Counter()
+    for row in cur.fetchall():
+        count[tuple(row)] += 1
+    for item, count in count.most_common():
+        if count < 20:
+            break
+        print count, item
+    cur.close()
+    db.close()
