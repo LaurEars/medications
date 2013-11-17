@@ -1,6 +1,7 @@
 import MySQLdb as sql
 import json
 from collections import Counter
+import urllib2
 
 '''
 Fields present:
@@ -81,6 +82,14 @@ for row in cur.fetchall():
     text[row[2]] = row[1]
     code[row[1]] = row[2]
 
+def get_image_url(image_id,size='small'):
+    '''
+    Returns image url
+    defaults to small image size - can be small or large
+    '''
+    # Image size defaults to small
+    image_url = 'http://pillbox.nlm.nih.gov/assets/%s/%s.jpg' % (size, image_id,)
+    return image_url
 
 # print colors/shapes/dea
 def print_colors(cur):
@@ -131,9 +140,31 @@ if __name__ == '__main__':
     search_string = "SELECT %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
     search_tuple = ('MEDICINE_NAME', table_name['color'], code['Green'], table_name['shape'], code['Pentagon (5 sides)'],)
     print "All medicines that are green and have 5 sides"
-    cur.execute(bad_replacement_string(search_string,search_tuple))
+    cur.execute(bad_replacement_string(search_string, search_tuple))
     for row in cur.fetchall():
         print row
+
+    search_string = "SELECT %s , %s, %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
+    search_tuple = ('MEDICINE_NAME', 'HAS_IMAGE', 'image_id', table_name['color'], code['Green'], table_name['shape'], code['Pentagon (5 sides)'],)
+    cur.execute(bad_replacement_string(search_string, search_tuple))
+    for item in cur.fetchall():
+        if item[1]:
+            image_id = item[2]
+            try:
+                image_url = get_image_url(image_id,'small')
+                req = urllib2.Request(image_url)
+                response = urllib2.urlopen(req)
+                with open(image_id + '.jpg','wb') as output_file:
+                    output_file.write(response.read())
+            except urllib2.HTTPError, e:
+                if e.code == 404:
+                    print "HTTP 404 Error for image %s" % image_id
+                else:
+                    raise
+            except Exception:
+                print "Error: could not download file from %s" % image_url
+
+
 
     print '\n' + '*'*30 + '\n'
 
