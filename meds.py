@@ -51,13 +51,13 @@ shape_number    shape_type      SPL_code
 # constants
 name = {'color': 'color', 'shape': 'shape_type', 'dea': 'DEA_schedule'}
 table_name = {'color': 'SPLCOLOR', 'shape': 'SPLSHAPE', 'dea': 'DEA_SCHEDULE_CODE'}
-table = {'master':'pillbox_master', 'color':'SPL_color_lookup', 'shape':'SPL_shape_lookup', 'dea':'SPL_DEA_lookup'}
+table = {'master': 'pillbox_master', 'color': 'SPL_color_lookup', 'shape': 'SPL_shape_lookup', 'dea': 'SPL_DEA_lookup'}
 
 select_color = "SELECT * FROM " + table['color']
 select_shape = "SELECT * FROM " + table['shape']
 
 # read .settings file
-with open('.settings','rb') as settings_file:
+with open('.settings', 'rb') as settings_file:
     settings = json.load(settings_file)
 
 # set up database
@@ -82,12 +82,14 @@ for row in cur.fetchall():
     text[row[2]] = row[1]
     code[row[1]] = row[2]
 
-def get_image_url(image_id,size='small'):
+
+def get_image_url(image_id, size='small'):
     '''
     Returns image url
-    defaults to small image size - can be small or large
+    defaults to small image size
+    @param image_id: SPL image_id string
+    @param size: 'small' or 'large'
     '''
-    # Image size defaults to small
     image_url = 'http://pillbox.nlm.nih.gov/assets/%s/%s.jpg' % (size, image_id,)
     return image_url
 
@@ -95,17 +97,17 @@ def get_image_url(image_id,size='small'):
 def print_colors(cur):
     select_color = "SELECT * FROM " + table['color']
     cur.execute(select_color)
-    print "-"*30
+    print "-" * 30
     print "Colors"
-    print "-"*30
+    print "-" * 30
     for row in cur.fetchall():
         print row
 
 
 def print_shapes(cur):
-    print "-"*30
+    print "-" * 30
     print "Shapes"
-    print "-"*30
+    print "-" * 30
     select_shape = "SELECT * FROM " + table['shape']
     cur.execute(select_shape)
     for row in cur.fetchall():
@@ -113,21 +115,33 @@ def print_shapes(cur):
 
 
 def print_dea(cur):
-    print "-"*30
+    print "-" * 30
     print "DEA"
-    print "-"*30
+    print "-" * 30
     cur.execute("SELECT * FROM " + table['dea'])
     for row in cur.fetchall():
         print row
 
 
 def bad_replacement_string(query_string, replacement_items):
-    # The escape sequence for mysqldb doesn't seem to work properly so i'll use this right now
+    '''
+    Formats queries for mysql
+    The escape sequence for mysqldb doesn't seem to work properly so i'll use this right now
+    @param query_string: String with %s for replacements
+    @param replacement_items: Items to be substituted into query_string
+    @return:MySQL query string
+    '''
     query = query_string % replacement_items
     return query
 
 
 def translate_code(code):
+    '''
+    Translates SPL code to description text (e.g."C48336" means "Capsule")
+    Multiple inputs and returns separated with ';'
+
+    @param code: code for color/shape/dea_schedule
+    '''
     decoded_items = []
     for item in code.split(';'):
         try:
@@ -136,25 +150,28 @@ def translate_code(code):
             decoded_items.append(item)
     return ';'.join(decoded_items)
 
+
 if __name__ == '__main__':
     search_string = "SELECT %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
-    search_tuple = ('MEDICINE_NAME', table_name['color'], code['Green'], table_name['shape'], code['Pentagon (5 sides)'],)
+    search_tuple = (
+        'MEDICINE_NAME', table_name['color'], code['Green'], table_name['shape'], code['Pentagon (5 sides)'],)
     print "All medicines that are green and have 5 sides"
     cur.execute(bad_replacement_string(search_string, search_tuple))
     for row in cur.fetchall():
         print row
 
     search_string = "SELECT %s , %s, %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
-    search_tuple = ('MEDICINE_NAME', 'HAS_IMAGE', 'image_id', table_name['color'], code['Green'], table_name['shape'], code['Pentagon (5 sides)'],)
+    search_tuple = ('MEDICINE_NAME', 'HAS_IMAGE', 'image_id', table_name['color'], code['Green'], table_name['shape'],
+                    code['Pentagon (5 sides)'],)
     cur.execute(bad_replacement_string(search_string, search_tuple))
     for item in cur.fetchall():
         if item[1]:
             image_id = item[2]
             try:
-                image_url = get_image_url(image_id,'small')
+                image_url = get_image_url(image_id, 'small')
                 req = urllib2.Request(image_url)
                 response = urllib2.urlopen(req)
-                with open(image_id + '.jpg','wb') as output_file:
+                with open(image_id + '.jpg', 'wb') as output_file:
                     output_file.write(response.read())
             except urllib2.HTTPError, e:
                 if e.code == 404:
@@ -164,15 +181,13 @@ if __name__ == '__main__':
             except Exception:
                 print "Error: could not download file from %s" % image_url
 
-
-
-    print '\n' + '*'*30 + '\n'
+    print '\n' + '*' * 30 + '\n'
 
     print "Most common color/shape combinations"
     # try counting different types of pills
     search_string = "SELECT %s, %s FROM pillbox_master"
     search_tuple = (table_name['color'], table_name['shape'],)
-    cur.execute(bad_replacement_string(search_string,search_tuple))
+    cur.execute(bad_replacement_string(search_string, search_tuple))
     count = Counter()
     for row in cur.fetchall():
         count[tuple(row)] += 1
