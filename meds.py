@@ -53,34 +53,46 @@ name = {'color': 'color', 'shape': 'shape_type', 'dea': 'DEA_schedule'}
 table_name = {'color': 'SPLCOLOR', 'shape': 'SPLSHAPE', 'dea': 'DEA_SCHEDULE_CODE'}
 table = {'master': 'pillbox_master', 'color': 'SPL_color_lookup', 'shape': 'SPL_shape_lookup', 'dea': 'SPL_DEA_lookup'}
 
-select_color = "SELECT * FROM " + table['color']
-select_shape = "SELECT * FROM " + table['shape']
 
-# read .settings file
-with open('.settings', 'rb') as settings_file:
-    settings = json.load(settings_file)
+def set_up_db(settings_filename):
+    """
+    Performs initial setup of database, returning a cursor for executing queries
+    @param settings_filename: string of filename containing MySQL settings
+    @return: MySQLdb cursor
+    """
+    with open('.settings', 'rb') as settings_file:
+        settings = json.load(settings_file)
+    db = sql.connect(host=settings['host'],
+                     user=settings['user'],
+                     passwd=settings['passwd'],
+                     db=settings['db'])
+    cursor = db.cursor()
+    return cursor, db
 
-# set up database
-db = sql.connect(host=settings['host'],
-                 user=settings['user'],
-                 passwd=settings['passwd'],
-                 db=settings['db'])
-cur = db.cursor()
 
-# grab colors (by code), code (by color/shape), and
-text = {}
-code = {}
+def generate_lut(cursor):
+    """
+    Associate text with SPL codes
+    @param cursor: MySQLdb cursor
+    @return: text dict / code dict
+    """
+    select_color = "SELECT * FROM " + table['color']
+    select_shape = "SELECT * FROM " + table['shape']
+    # TODO: Add DEA lut
+    text = {}
+    code = {}
 
-# get colors
-cur.execute(select_color)
-for row in cur.fetchall():
-    text[row[2]] = row[1]
-    code[row[1]] = row[2]
-# get shapes
-cur.execute(select_shape)
-for row in cur.fetchall():
-    text[row[2]] = row[1]
-    code[row[1]] = row[2]
+    # get colors
+    cursor.execute(select_color)
+    for row in cursor.fetchall():
+        text[row[2]] = row[1]
+        code[row[1]] = row[2]
+    # get shapes
+    cursor.execute(select_shape)
+    for row in cursor.fetchall():
+        text[row[2]] = row[1]
+        code[row[1]] = row[2]
+    return text, code
 
 
 def get_image_url(image_id, size='small'):
@@ -92,6 +104,7 @@ def get_image_url(image_id, size='small'):
     '''
     image_url = 'http://pillbox.nlm.nih.gov/assets/%s/%s.jpg' % (size, image_id,)
     return image_url
+
 
 # print colors/shapes/dea
 def print_colors(cur):
@@ -117,7 +130,7 @@ def print_shapes(cur):
 def print_dea(cur):
     print "-" * 30
     print "DEA"
-    print "-" * 30
+    print "-"
     cur.execute("SELECT * FROM " + table['dea'])
     for row in cur.fetchall():
         print row
@@ -152,6 +165,9 @@ def translate_code(code):
 
 
 if __name__ == '__main__':
+    settings_filename = '.settings'
+    cur, db = set_up_db(settings_filename)
+    text, code = generate_lut(cur)
     search_string = "SELECT %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
     search_tuple = (
         'MEDICINE_NAME', table_name['color'], code['Green'], table_name['shape'], code['Pentagon (5 sides)'],)
