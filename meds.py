@@ -1,5 +1,4 @@
-import MySQLdb as sql
-import json
+import sqlite3 as sql
 from collections import Counter
 import urllib2
 
@@ -60,14 +59,9 @@ def set_up_db(settings_filename):
     @param settings_filename: string of filename containing MySQL settings
     @return: MySQLdb cursor
     """
-    with open('.settings', 'rb') as settings_file:
-        settings = json.load(settings_file)
-    db = sql.connect(host=settings['host'],
-                     user=settings['user'],
-                     passwd=settings['passwd'],
-                     db=settings['db'])
-    cursor = db.cursor()
-    return cursor, db
+    db = sql.connect('med.db')
+    cur = db.cursor()
+    return db, cur
 
 
 def generate_lut(cursor):
@@ -84,6 +78,7 @@ def generate_lut(cursor):
 
     # get colors
     cursor.execute(select_color)
+    # TODO: Use proper SQL query to determine table
     for row in cursor.fetchall():
         text[row[2]] = row[1]
         code[row[1]] = row[2]
@@ -166,7 +161,7 @@ def translate_code(code):
 
 if __name__ == '__main__':
     settings_filename = '.settings'
-    cur, db = set_up_db(settings_filename)
+    db, cur = set_up_db(settings_filename)
     text, code = generate_lut(cur)
     search_string = "SELECT %s FROM pillbox_master WHERE %s='%s' and %s='%s'"
     search_tuple = (
