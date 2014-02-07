@@ -56,8 +56,8 @@ table = {'master': 'pillbox_master', 'color': 'SPL_color_lookup', 'shape': 'SPL_
 def set_up_db(settings_filename):
     """
     Performs initial setup of database, returning a cursor for executing queries
-    @param settings_filename: string of filename containing MySQL settings
-    @return: MySQLdb cursor
+    @param settings_filename: string of filename containing sqlite3 settings
+    @return: sqlite3 cursor
     """
     db = sql.connect('med.db')
     cur = db.cursor()
@@ -67,26 +67,30 @@ def set_up_db(settings_filename):
 def generate_lut(cursor):
     """
     Associate text with SPL codes
-    @param cursor: MySQLdb cursor
+    @param cursor: sqlite3 cursor
     @return: text dict / code dict
     """
-    select_color = "SELECT * FROM " + table['color']
-    select_shape = "SELECT * FROM " + table['shape']
-    # TODO: Add DEA lut
+    select_color = "SELECT color, SPL_code FROM " + table['color']
+    select_shape = "SELECT shape_type, SPL_code FROM " + table['shape']
+    select_dea = "SELECT DEA_schedule, DEA_SCHEDULE_CODE FROM " + table['dea']
     text = {}
     code = {}
 
     # get colors
     cursor.execute(select_color)
-    # TODO: Use proper SQL query to determine table
     for row in cursor.fetchall():
-        text[row[2]] = row[1]
-        code[row[1]] = row[2]
+        text[row[1]] = row[0]
+        code[row[0]] = row[1]
     # get shapes
     cursor.execute(select_shape)
     for row in cursor.fetchall():
-        text[row[2]] = row[1]
-        code[row[1]] = row[2]
+        text[row[1]] = row[0]
+        code[row[0]] = row[1]
+    # get DEA codes
+    cursor.execute(select_dea)
+    for row in cursor.fetchall():
+        text[row[1]] = row[0]
+        code[row[0]] = row[1]
     return text, code
 
 
@@ -125,7 +129,7 @@ def print_shapes(cur):
 def print_dea(cur):
     print "-" * 30
     print "DEA"
-    print "-"
+    print "-" * 30
     cur.execute("SELECT * FROM " + table['dea'])
     for row in cur.fetchall():
         print row
